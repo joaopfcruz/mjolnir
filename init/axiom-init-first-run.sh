@@ -1,5 +1,7 @@
 #!/bin/bash
+APPUSER="thor"
 SLEEPTIME=3
+
 
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -102,3 +104,10 @@ printf "Executing axiom-build with the default provisioner\n"
 printf "*****************************\n\n${NC}"
 bash ${AXIOM_PATH}/interact/axiom-build ${AXIOM_PROVISIONER}
 printf "${GREEN}\nDone. Build finished..\n${NC}"
+
+sleep $SLEEPTIME
+
+printf "${GREEN}\n\n\n*****************************\n"
+printf "Removing passwordless user as it's not needed anymore!\n"
+printf "*****************************\n\n${NC}"
+sudo sed -i "/${APPUSER}.*NOPASSWD:.*ALL/d" /etc/sudoers
