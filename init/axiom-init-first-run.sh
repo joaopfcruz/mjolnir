@@ -66,10 +66,7 @@ printf "${GREEN}\n\n\n*****************************\n"
 printf "Executing axiom-configure\n"
 printf "*****************************\n\n${NC}"
 rm -f "${AXIOM_PATH}/axiom.json"
-wget https://raw.githubusercontent.com/pry0cc/axiom/master/interact/axiom-configure
-chmod +x axiom-configure
-bash axiom-configure --shell bash --unattended --config ${AXIOM_CONFIG}
-rm -f axiom-configure
+curl -fsSL https://raw.githubusercontent.com/pry0cc/axiom/master/interact/axiom-configure | bash -s -- --shell bash --unattended --config ${AXIOM_CONFIG}
 #copy profile config to correct folder and meaningful name
 rm -f ${AXIOM_PATH}/accounts/*
 cp "${AXIOM_PATH}/axiom.json" "${AXIOM_CONFIG_OUTPUT_FILE}"
