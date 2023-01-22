@@ -35,7 +35,7 @@ if [[ "${env}" != "dev" ]] && [[ "${env}" != "prod" ]]; then
 fi
 
 AXIOM_PATH="$HOME/.axiom"
-#DigitalOcean config stuff for DEV environment
+AXIOM_PROVISIONER="default"
 DIGOCN_API_TOKEN="${do_token}" #WARNING! WE SHOULD REPLACE THIS WITH DOPPLER OR ANY OTHER SECRETS MANAGER!
 if [[ "${env}" == "dev" ]]; then
   DIGOCN_DFLT_REGION="fra1"
@@ -95,3 +95,10 @@ sleep $SLEEPTIME
 printf "${GREEN}\n\n\n'op' user password is: ${OP_PWD}\n"
 printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
 printf "WARNING: YOU MAY WANT TO SAVE THE PASSWORD AND SSH PRIVATE KEY IF YOU WANT TO ACCESS AXIOM BOXES!!!!\n${NC}"
+sleep $SLEEPTIME
+
+printf "${GREEN}\n\n\n*****************************\n"
+printf "Executing axiom-build with the default provisioner\n"
+printf "*****************************\n\n${NC}"
+bash ${AXIOM_PATH}/interact/axiom-build ${AXIOM_PROVISIONER}
+printf "${GREEN}\nDone. Build finished..\n${NC}"
