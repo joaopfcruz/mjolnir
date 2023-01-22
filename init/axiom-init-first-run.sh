@@ -90,6 +90,7 @@ bash ${AXIOM_PATH}/interact/axiom-account ${AXIOM_PROFILE_NAME}
 
 printf "${GREEN}\n\n\nConfiguration summary:\n${NC}"
 cat ${AXIOM_CONFIG_OUTPUT_FILE} | jq
+sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\n'op' user password is: ${OP_PWD}\n"
 printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
