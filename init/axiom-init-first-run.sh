@@ -88,6 +88,9 @@ printf "Executing axiom-account\n"
 printf "*****************************\n\n${NC}"
 bash ${AXIOM_PATH}/interact/axiom-account ${AXIOM_PROFILE_NAME}
 
+printf "${GREEN}\n\n\nConfiguration summary:\n${NC}"
+cat ${AXIOM_CONFIG_OUTPUT_FILE} | jq
+
 printf "${GREEN}\n\n\n'op' user password is: ${OP_PWD}\n"
 printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
 printf "WARNING: YOU MAY WANT TO SAVE THE PASSWORD AND SSH PRIVATE KEY IF YOU WANT TO ACCESS AXIOM BOXES!!!!\n${NC}"
