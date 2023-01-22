@@ -111,3 +111,4 @@ printf "${GREEN}\n\n\n*****************************\n"
 printf "Removing passwordless user as it's not needed anymore!\n"
 printf "*****************************\n\n${NC}"
 sudo sed -i "/${APPUSER}.*NOPASSWD:.*ALL/d" /etc/sudoers
+printf "${GREEN}\nDone.\n${NC}"
