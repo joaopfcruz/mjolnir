@@ -81,15 +81,6 @@ wget -O /tmp/doctl.tar.gz https://github.com/digitalocean/doctl/releases/downloa
 printf "${GREEN}\nDone. doctl installed.\n${NC}"
 sleep $SLEEPTIME
 
-printf "'op' user password is: ${OP_PWD}\n"
-printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
-printf "WARNING: YOU MAY WANT TO SAVE THE PASSWORD AND SSH PRIVATE KEY IF YOU WANT TO ACCESS AXIOM BOXES!!!!\n"
-
-printf "\nConfig file stored in ${AXIOM_CONFIG_OUTPUT_FILE}\n"
-
-printf "Finishing configuring and enabling this account...\n${NC}"
-sleep $SLEEPTIME
-
 printf "${GREEN}\n\n\n*****************************\n"
 printf "Executing axiom-account\n"
 printf "*****************************\n\n${NC}"
