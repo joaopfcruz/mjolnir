@@ -4,6 +4,8 @@ SLEEPTIME=3
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+CURR_DATE=$(date +%Y%m%d_%H%M%S)
+
 echo "Cjg4OGIgICAgIGQ4ODggIGQ4YiAgICAgICAgICA4ODggICAgICAgICAgZDhiICAgICAgICAgCjg4ODhiICAgZDg4ODggIFk4UCAgICAgICAgICA4ODggICAgICAgICAgWThQICAgICAgICAgCjg4ODg4Yi5kODg4ODggICAgICAgICAgICAgICA4ODggICAgICAgICAgICAgICAgICAgICAgCjg4OFk4ODg4OFA4ODggODg4OCAgLmQ4OGIuICA4ODggODg4ODhiLiAgODg4IDg4OGQ4ODggCjg4OCBZODg4UCA4ODggIjg4OCBkODgiIjg4YiA4ODggODg4ICI4OGIgODg4IDg4OFAiICAgCjg4OCAgWThQICA4ODggIDg4OCA4ODggIDg4OCA4ODggODg4ICA4ODggODg4IDg4OCAgICAgCjg4OCAgICIgICA4ODggIDg4OCBZODguLjg4UCA4ODggODg4ICA4ODggODg4IDg4OCAgICAgCjg4OCAgICAgICA4ODggIDg4OCAgIlk4OFAiICA4ODggODg4ICA4ODggODg4IDg4OCAgICAgCiAgICAgICAgICAgICAgIDg4OCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgZDg4UCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgIDg4OFAiCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAooIkJ1dCBmaW5lc3Qgb2YgdGhlbSBhbGwsIFRoZSBDcnVzaGVyIGl0IGlzIGNhbGxlZDogTWrDtmxuaXIhIEhhbW1lciBvZiBUaG9yISIp" | base64 -d
 printf "\n\n"
 printf "${GREEN}Configuring axiom for the very first time...\n${NC}"
@@ -47,14 +49,14 @@ printf "\n\n\n${GREEN}${env} environment was selected.\n\tDefault DigitalOcean r
 sleep $SLEEPTIME
 
 OP_PWD=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-96} | head -n 1)
-GOLDEN_IMAGE_NAME="axiom-goldenimage-${env}-$(cat /proc/sys/kernel/random/uuid)"
+GOLDEN_IMAGE_NAME="axiom-goldenimage-${env}-${CURR_DATE}-$(cat /proc/sys/kernel/random/uuid)"
 
 #create a new SSH key to embed on the golden image (force overwite if other key already exists)
 printf "${GREEN}\n\n\n*****************************\n"
 printf "Creating a new SSH key to embed on the golden image\n"
 printf "*****************************\n\n${NC}"
 KEYFILE="axiom_${env}key"
-echo -e "y\n" | ssh-keygen -t ed25519 -C "axiom-${env}-$(date +%Y%m%d_%H%M%S)" -f "$HOME/.ssh/${KEYFILE}" -N ""
+echo -e "y\n" | ssh-keygen -t ed25519 -C "axiom-${env}-${CURR_DATE}" -f "$HOME/.ssh/${KEYFILE}" -N ""
 printf "${GREEN}\nDone. SSH key stored in $HOME/.ssh/${KEYFILE}\n${NC}"
 sleep $SLEEPTIME
 
