@@ -38,6 +38,7 @@ fi
 
 AXIOM_PATH="$HOME/.axiom"
 AXIOM_PROVISIONER="default"
+AXIOM_DO_PROVIDER="do"
 DIGOCN_API_TOKEN="${do_token}" #WARNING! WE SHOULD REPLACE THIS WITH DOPPLER OR ANY OTHER SECRETS MANAGER!
 if [[ "${env}" == "dev" ]]; then
   DIGOCN_DFLT_REGION="fra1"
@@ -63,7 +64,7 @@ cat $HOME/.ssh/${KEYFILE}.pub > $AXIOM_PATH/configs/authorized_keys
 printf "${GREEN}\nDone. SSH key stored in $HOME/.ssh/${KEYFILE}\n${NC}"
 sleep $SLEEPTIME
 
-AXIOM_CONFIG="{\"do_key\":\"${DIGOCN_API_TOKEN}\",\"region\":\"${DIGOCN_DFLT_REGION}\",\"provider\":\"do\",\"default_size\":\"${DIGOCN_DFLT_DROPLETSIZE}\",\"appliance_name\":\"\",\"appliance_key\":\"\",\"appliance_url\":\"\",\"email\":\"\",\"sshkey\":\"${KEYFILE}\",\"op\":\"${OP_PWD}\",\"imageid\":\"${GOLDEN_IMAGE_NAME}\",\"provisioner\":\"${AXIOM_PROVISIONER}\"}"
+AXIOM_CONFIG="{\"do_key\":\"${DIGOCN_API_TOKEN}\",\"region\":\"${DIGOCN_DFLT_REGION}\",\"provider\":\"${AXIOM_DO_PROVIDER}\",\"default_size\":\"${DIGOCN_DFLT_DROPLETSIZE}\",\"appliance_name\":\"\",\"appliance_key\":\"\",\"appliance_url\":\"\",\"email\":\"\",\"sshkey\":\"${KEYFILE}\",\"op\":\"${OP_PWD}\",\"imageid\":\"${GOLDEN_IMAGE_NAME}\",\"provisioner\":\"${AXIOM_PROVISIONER}\"}"
 AXIOM_PROFILE_NAME="axiom_conf_${env}"
 AXIOM_CONFIG_OUTPUT_FILE="${AXIOM_PATH}/accounts/${AXIOM_PROFILE_NAME}.json"
 
@@ -99,6 +100,8 @@ printf "${GREEN}\n\n\n*****************************\n"
 printf "Executing packer (axiom-build) to build the golden image\n"
 printf "*****************************\n\n${NC}"
 #note: We run packer directly and not axiom-build built-in command so we can control things like op_random_password and snapshot_name
+$AXIOM_PATH/interact/axiom-provider "${AXIOM_DO_PROVIDER}"
+$AXIOM_PATH/interact/generate_packer "${AXIOM_DO_PROVIDER}" "${AXIOM_PROVISIONER}"
 if packer build -var-file "$AXIOM_PATH"/axiom.json -var "variant=${AXIOM_PROVISIONER}" -var "op_random_password=${OP_PWD}" -var "snapshot_name=${GOLDEN_IMAGE_NAME}" "$AXIOM_PATH/images/axiom.json"; then
   printf "${GREEN}\n\n\nGolden image was built successfully.\n${NC}"
 else
