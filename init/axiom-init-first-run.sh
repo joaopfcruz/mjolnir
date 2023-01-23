@@ -102,6 +102,7 @@ printf "*****************************\n\n${NC}"
 #note: We run packer directly and not axiom-build built-in command so we can control things like op_random_password and snapshot_name
 $AXIOM_PATH/interact/axiom-provider "${AXIOM_DO_PROVIDER}"
 $AXIOM_PATH/interact/generate_packer "${AXIOM_DO_PROVIDER}" "${AXIOM_PROVISIONER}"
+cd "$AXIOM_PATH"/ || exit
 if packer build -var-file "$AXIOM_PATH"/axiom.json -var "variant=${AXIOM_PROVISIONER}" -var "op_random_password=${OP_PWD}" -var "snapshot_name=${GOLDEN_IMAGE_NAME}" "$AXIOM_PATH/images/axiom.json"; then
   printf "${GREEN}\n\n\nGolden image was built successfully.\n${NC}"
 else
