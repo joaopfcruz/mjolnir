@@ -51,7 +51,6 @@ fi
 printf "\n\n\n${GREEN}${env} environment was selected.\n\tDefault DigitalOcean region: ${DIGOCN_DFLT_REGION};\n\tDefault droplet size: ${DIGOCN_DFLT_DROPLETSIZE}\n${NC}\n"
 sleep $SLEEPTIME
 
-OP_PWD=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-96} | head -n 1)
 GOLDEN_IMAGE_NAME="axiom-goldenimage-${env}-${CURR_DATE}-$(cat /proc/sys/kernel/random/uuid)"
 
 #create a new SSH key to embed on the golden image (force overwite if other key already exists)
@@ -60,11 +59,10 @@ printf "Creating a new SSH key to embed on the golden image\n"
 printf "*****************************\n\n${NC}"
 KEYFILE="axiom_${env}key"
 echo -e "y\n" | ssh-keygen -t ed25519 -C "axiom-${env}-${CURR_DATE}" -f "$HOME/.ssh/${KEYFILE}" -N ""
-cat $HOME/.ssh/${KEYFILE}.pub > $AXIOM_PATH/configs/authorized_keys
 printf "${GREEN}\nDone. SSH key stored in $HOME/.ssh/${KEYFILE}\n${NC}"
 sleep $SLEEPTIME
 
-AXIOM_CONFIG="{\"do_key\":\"${DIGOCN_API_TOKEN}\",\"region\":\"${DIGOCN_DFLT_REGION}\",\"provider\":\"${AXIOM_DO_PROVIDER}\",\"default_size\":\"${DIGOCN_DFLT_DROPLETSIZE}\",\"appliance_name\":\"\",\"appliance_key\":\"\",\"appliance_url\":\"\",\"email\":\"\",\"sshkey\":\"${KEYFILE}\",\"op\":\"${OP_PWD}\",\"imageid\":\"${GOLDEN_IMAGE_NAME}\",\"provisioner\":\"${AXIOM_PROVISIONER}\"}"
+AXIOM_CONFIG="{\"do_key\":\"${DIGOCN_API_TOKEN}\",\"region\":\"${DIGOCN_DFLT_REGION}\",\"provider\":\"${AXIOM_DO_PROVIDER}\",\"default_size\":\"${DIGOCN_DFLT_DROPLETSIZE}\",\"appliance_name\":\"\",\"appliance_key\":\"\",\"appliance_url\":\"\",\"email\":\"\",\"sshkey\":\"${KEYFILE}\",\"op\":\"\",\"imageid\":\"${GOLDEN_IMAGE_NAME}\",\"provisioner\":\"${AXIOM_PROVISIONER}\"}"
 AXIOM_PROFILE_NAME="axiom_conf_${env}"
 AXIOM_CONFIG_OUTPUT_FILE="${AXIOM_PATH}/accounts/${AXIOM_PROFILE_NAME}.json"
 
@@ -97,17 +95,10 @@ cat ${AXIOM_CONFIG_OUTPUT_FILE} | jq
 sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\n*****************************\n"
-printf "Executing packer (axiom-build) to build the golden image\n"
+printf "Executing axiom-build\n"
 printf "*****************************\n\n${NC}"
-#note: We run packer directly and not axiom-build built-in command so we can control things like op_random_password and snapshot_name
-$AXIOM_PATH/interact/axiom-provider "${AXIOM_DO_PROVIDER}"
-$AXIOM_PATH/interact/generate_packer "${AXIOM_DO_PROVIDER}" "${AXIOM_PROVISIONER}"
-cd "$AXIOM_PATH"/ || exit
-if packer build -var-file "$AXIOM_PATH"/axiom.json -var "variant=${AXIOM_PROVISIONER}" -var "op_random_password=${OP_PWD}" -var "snapshot_name=${GOLDEN_IMAGE_NAME}" "$AXIOM_PATH/images/axiom.json"; then
-  printf "${GREEN}\n\n\nGolden image was built successfully.\n${NC}"
-else
-  printf "${GREEN}\n\n\nBuild failed!\n${NC}"
-fi
+$AXIOM_PATH/interact/axiom-build "${AXIOM_PROVISIONER}"
+
 sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\n*****************************\n"
@@ -117,7 +108,7 @@ sudo sed -i "/${APPUSER}.*NOPASSWD:.*ALL/d" /etc/sudoers
 printf "${GREEN}\nDone.\n${NC}"
 sleep $SLEEPTIME
 
-printf "${GREEN}\n\n\n'op' user password is: ${OP_PWD}\n"
+printf "${GREEN}\n\n\n'op' user password is: $(jq -r '.op' $AXIOM_PATH/axiom.json)\n"
 printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
 printf "WARNING: YOU MAY WANT TO SAVE THE PASSWORD AND SSH PRIVATE KEY IF YOU WANT TO ACCESS AXIOM BOXES!!!!\n${NC}"
 sleep $SLEEPTIME
