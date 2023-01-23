@@ -104,10 +104,10 @@ printf "${GREEN}\n\n\n*****************************\n"
 printf "Renaming snapshot for better comprehension\n"
 printf "*****************************\n\n${NC}"
 current_image_name=$(jq -r '.imageid' $AXIOM_PATH/axiom.json)
-image_id=$(doctl compute image list | grep "$(current_image_name)" | awk '{ print $1 }')
-doctl compute image update $image_id --image-name ${GOLDEN_IMAGE_NAME}
+image_id=$(doctl compute image list | grep "${current_image_name}" | awk '{ print $1 }')
+doctl compute image update ${image_id} --image-name ${GOLDEN_IMAGE_NAME}
 account_path=$(ls -la $AXIOM_PATH/axiom.json | rev | cut -d " " -f 1 | rev)
-jq '.imageid="'${GOLDEN_IMAGE_NAME}'"' < "$account_path">"$AXIOM_PATH"/tmp.json ; mv "$AXIOM_PATH"/tmp.json "$account_path"
+jq '.imageid="'${GOLDEN_IMAGE_NAME}'"' < "$account_path" > "$AXIOM_PATH"/tmp.json ; mv "$AXIOM_PATH"/tmp.json "$account_path"
 printf "${GREEN}\nDone. Image should be now named '${GOLDEN_IMAGE_NAME}'.\n${NC}"
 
 sleep $SLEEPTIME
