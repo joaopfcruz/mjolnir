@@ -42,10 +42,10 @@ AXIOM_DO_PROVIDER="do"
 DIGOCN_API_TOKEN="${do_token}" #WARNING! WE SHOULD REPLACE THIS WITH DOPPLER OR ANY OTHER SECRETS MANAGER!
 if [[ "${env}" == "dev" ]]; then
   DIGOCN_DFLT_REGION="fra1"
-  DIGOCN_DFLT_DROPLETSIZE="s-1vcpu-512mb-10gb"
+  DIGOCN_DFLT_DROPLETSIZE="s-1vcpu-1gb"
 else
   DIGOCN_DFLT_REGION="lon1"
-  DIGOCN_DFLT_DROPLETSIZE="s-4vcpu-8gb"
+  DIGOCN_DFLT_DROPLETSIZE="s-8vcpu-16gb"
 fi
 
 printf "\n\n\n${GREEN}${env} environment was selected.\n\tDefault DigitalOcean region: ${DIGOCN_DFLT_REGION};\n\tDefault droplet size: ${DIGOCN_DFLT_DROPLETSIZE}\n${NC}\n"
