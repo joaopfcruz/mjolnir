@@ -59,10 +59,11 @@ printf "Creating a new SSH key to embed on the golden image\n"
 printf "*****************************\n\n${NC}"
 KEYFILE="axiom_${env}key"
 echo -e "y\n" | ssh-keygen -t ed25519 -C "axiom-${env}-${CURR_DATE}" -f "$HOME/.ssh/${KEYFILE}" -N ""
+cat $HOME/.ssh/${KEYFILE}.pub > $AXIOM_PATH/configs/authorized_keys
 printf "${GREEN}\nDone. SSH key stored in $HOME/.ssh/${KEYFILE}\n${NC}"
 sleep $SLEEPTIME
 
-AXIOM_CONFIG="{\"do_key\":\"${DIGOCN_API_TOKEN}\",\"region\":\"${DIGOCN_DFLT_REGION}\",\"provider\":\"do\",\"default_size\":\"${DIGOCN_DFLT_DROPLETSIZE}\",\"appliance_name\":\"\",\"appliance_key\":\"\",\"appliance_url\":\"\",\"email\":\"\",\"sshkey\":\"${KEYFILE}\",\"op\":\"${OP_PWD}\",\"imageid\":\"${GOLDEN_IMAGE_NAME}\",\"provisioner\":\"default\"}"
+AXIOM_CONFIG="{\"do_key\":\"${DIGOCN_API_TOKEN}\",\"region\":\"${DIGOCN_DFLT_REGION}\",\"provider\":\"do\",\"default_size\":\"${DIGOCN_DFLT_DROPLETSIZE}\",\"appliance_name\":\"\",\"appliance_key\":\"\",\"appliance_url\":\"\",\"email\":\"\",\"sshkey\":\"${KEYFILE}\",\"op\":\"${OP_PWD}\",\"imageid\":\"${GOLDEN_IMAGE_NAME}\",\"provisioner\":\"${AXIOM_PROVISIONER}\"}"
 AXIOM_PROFILE_NAME="axiom_conf_${env}"
 AXIOM_CONFIG_OUTPUT_FILE="${AXIOM_PATH}/accounts/${AXIOM_PROFILE_NAME}.json"
 
@@ -86,7 +87,7 @@ printf "${GREEN}\nDone. doctl installed.\n${NC}"
 sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\n*****************************\n"
-printf "Executing axiom-account\n"
+printf "Executing axiom-account to enable config\n"
 printf "*****************************\n\n${NC}"
 bash ${AXIOM_PATH}/interact/axiom-account ${AXIOM_PROFILE_NAME}
 
@@ -94,17 +95,15 @@ printf "${GREEN}\n\n\nConfiguration summary:\n${NC}"
 cat ${AXIOM_CONFIG_OUTPUT_FILE} | jq
 sleep $SLEEPTIME
 
-printf "${GREEN}\n\n\n'op' user password is: ${OP_PWD}\n"
-printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
-printf "WARNING: YOU MAY WANT TO SAVE THE PASSWORD AND SSH PRIVATE KEY IF YOU WANT TO ACCESS AXIOM BOXES!!!!\n${NC}"
-sleep $SLEEPTIME
-
 printf "${GREEN}\n\n\n*****************************\n"
-printf "Executing axiom-build with the default provisioner\n"
+printf "Executing packer (axiom-build) to build the golden image\n"
 printf "*****************************\n\n${NC}"
-bash ${AXIOM_PATH}/interact/axiom-build ${AXIOM_PROVISIONER}
-printf "${GREEN}\nDone. Build finished..\n${NC}"
-
+#note: We run packer directly and not axiom-build built-in command so we can control things like op_random_password and snapshot_name
+if packer build -var-file "$AXIOM_PATH"/axiom.json -var "variant=${AXIOM_PROVISIONER}" -var "op_random_password=${OP_PWD}" -var "snapshot_name=${GOLDEN_IMAGE_NAME}" "$AXIOM_PATH/images/axiom.json"; then
+  printf "${GREEN}\n\n\nGolden image was built successfully.\n${NC}"
+else
+  printf "${GREEN}\n\n\nBuild failed!\n${NC}"
+fi
 sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\n*****************************\n"
@@ -112,3 +111,9 @@ printf "Removing passwordless user as it's not needed anymore!\n"
 printf "*****************************\n\n${NC}"
 sudo sed -i "/${APPUSER}.*NOPASSWD:.*ALL/d" /etc/sudoers
 printf "${GREEN}\nDone.\n${NC}"
+sleep $SLEEPTIME
+
+printf "${GREEN}\n\n\n'op' user password is: ${OP_PWD}\n"
+printf "SSH key to access axiom boxes stored in ~/.ssh/${KEYFILE}\n"
+printf "WARNING: YOU MAY WANT TO SAVE THE PASSWORD AND SSH PRIVATE KEY IF YOU WANT TO ACCESS AXIOM BOXES!!!!\n${NC}"
+sleep $SLEEPTIME
