@@ -98,6 +98,15 @@ printf "${GREEN}\n\n\n*****************************\n"
 printf "Executing axiom-build\n"
 printf "*****************************\n\n${NC}"
 $AXIOM_PATH/interact/axiom-build "${AXIOM_PROVISIONER}"
+sleep $SLEEPTIME
+
+printf "${GREEN}\n\n\n*****************************\n"
+printf "Renaming snapshot for better comprehension\n"
+printf "*****************************\n\n${NC}"
+current_image_name=$(jq -r '.imageid' $AXIOM_PATH/axiom.json)
+image_id=$(doctl compute image list | grep "$(current_image_name)" | awk '{ print $1 }')
+doctl compute image update $image_id --image-name ${GOLDEN_IMAGE_NAME}
+printf "${GREEN}\nDone. Image should be now named '${GOLDEN_IMAGE_NAME}'.\n${NC}"
 
 sleep $SLEEPTIME
 
