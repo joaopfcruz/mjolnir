@@ -32,7 +32,7 @@ sleep 10
 if ! [ $? -eq 0 ]; then
   log_err "An error occurred while deleting fleet"; exit 1;
 else
-  n_instances=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*" | wc -l)
+  n_instances=$($AXIOM_PATH/interact/axiom-ls | grep "active" | grep -E "${prefix}[0-9]*" | wc -l)
 if [ $n_instances -eq 0 ]; then
     log_info "Fleet ${prefix} should have been deleted successfully (or no instances matched the prefix supplied)"
   else
