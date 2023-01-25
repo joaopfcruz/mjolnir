@@ -1,10 +1,7 @@
 #!/bin/bash
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-AXIOM_PATH="$HOME/.axiom"
+source "$MJOLNIR_PATH/includes/vars.sh"
+source "$MJOLNIR_PATH/includes/logger.sh"
 
 usage() { printf "${RED}Usage: $0 -p <fleet prefix> -n <number of instances to spawn>${NC}\n" 1>&2; exit 0; }
 
