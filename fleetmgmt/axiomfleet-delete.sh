@@ -3,7 +3,7 @@
 source "$MJOLNIR_PATH/includes/vars.sh"
 source "$MJOLNIR_PATH/includes/logger.sh"
 
-usage() { log_err "Usage: $0 -p <fleet prefix>" 1>&2; exit 0; }
+usage() { log_err "Usage: $0 -p <fleet prefix>"; exit 0; }
 
 while getopts ":p:" flags; do
   case "${flags}" in
@@ -30,18 +30,13 @@ log_info "Deletion command ran successfully. Waiting a few more seconds to let t
 sleep 10
 
 if ! [ $? -eq 0 ]; then
-  >&2 log_err "An error occurred while deleting fleet"; exit 1;
+  log_err "An error occurred while deleting fleet"; exit 1;
 else
   n_instances=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*" | wc -l)
 if [ $n_instances -eq 0 ]; then
     log_info "Fleet ${prefix} should have been deleted successfully (or no instances matched the prefix supplied)"
   else
-    log_warn "Fleet ${prefix} still have undeleted instances. Please delete them manually. Details:"
-    details=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*")
-    while IFS= read -r line
-    do
-      log_info "${line}"
-    done < <(printf "%s\n" "${details}")
+    log_warn "Fleet ${prefix} still have undeleted instances. Please delete them manually. Run axiom-ls or check DigitalOcean dashboard"
   fi
 fi
 log_info "[END $0] Finished deletion process"
