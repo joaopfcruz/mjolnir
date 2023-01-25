@@ -23,10 +23,25 @@ fi
 #input sanitization: remove special characters from prefix, just in case
 #axiomfleet-spawn.sh also does this so it should be fine.
 prefix=$(echo "${prefix}" | tr -dc '[:alnum:]')
+
+log_info "[START $0] Deletion process starting. Will delete fleet $prefix..."
 $AXIOM_PATH/interact/axiom-rm "${prefix}*" -f
+log_info "Deletion command ran successfully. Waiting a few more seconds to let the process end..."
+sleep 10
 
 if ! [ $? -eq 0 ]; then
-  >&2 log_err "An error occurred while deleting fleet."; exit 1;
+  >&2 log_err "An error occurred while deleting fleet"; exit 1;
 else
-  log_info "Fleet should have been deleted with success."
+  n_instances=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*" | wc -l)
+if [ $n_instances -eq 0 ]; then
+    log_info "Fleet ${prefix} should have been deleted successfully (or no instances matched the prefix supplied)"
+  else
+    log_warn "Fleet ${prefix} still have undeleted instances. Please delete them manually. Details:"
+    details=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*")
+    while IFS= read -r line
+    do
+      log_info "${line}"
+    done < <(printf "%s\n" "${details}")
+  fi
 fi
+log_info "[END $0] Finished deletion process"
