@@ -14,5 +14,5 @@ log_warn(){
 }
 
 log_err(){
-  printf "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] [mjolnir] [ERROR] $1\n${NC}"
+  printf "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] [mjolnir] [ERROR] $1\n${NC}" >&2
 }
