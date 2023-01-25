@@ -1,9 +1,6 @@
 #!/bin/bash
 
-RED="\033[0;31m"
-ORANGE="\033[0;33m"
-GREEN="\033[0;32m"
-NC="\033[0m"
+source "$MJOLNIR_PATH/includes/vars.sh"
 
 log_info(){
   printf "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [mjolnir] [INFO] $1\n${NC}"
