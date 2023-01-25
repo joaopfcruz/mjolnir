@@ -3,7 +3,7 @@
 source "$MJOLNIR_PATH/includes/vars.sh"
 source "$MJOLNIR_PATH/includes/logger.sh"
 
-usage() { log_err "Usage: $0 -p <fleet prefix> -n <number of instances to spawn>" 1>&2; exit 0; }
+usage() { log_err "Usage: $0 -p <fleet prefix> -n <number of instances to spawn>"; exit 0; }
 
 while getopts ":p:n:" flags; do
   case "${flags}" in
@@ -25,7 +25,7 @@ fi
 
 #input validation: check if n_instances is a number
 if ! [[ "${n_instances}" =~ ^[0-9]+$ ]]; then
-  >&2 log_err "-n parameter should be an integer number"; exit 1;
+  log_err "-n parameter should be an integer number"; exit 1;
 fi
 
 #input sanitization: remove special characters from prefix, just in case
@@ -35,19 +35,15 @@ log_info "[START $0] Spawning process started. Will create ${n_instances} instan
 $AXIOM_PATH/interact/axiom-fleet $prefix -i $n_instances
 
 if ! [ $? -eq 0 ]; then
-  >&2 log_err "An error occurred while initializing fleet"; exit 1;
+  log_err "An error occurred while initializing fleet"; exit 1;
 else
   log_info "Fleet should have been initialized with success. Waiting a few more seconds to let the process end..."
   sleep 120
-  details=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*")
-  n_created=$(echo "${details}" | wc -l)
+  n_created=$($AXIOM_PATH/interact/axiom-ls | grep -E "${prefix}[0-9]*" | wc -l)
+  echo $n_created
+  echo $n_instances
   if [ $n_created -eq $n_instances ]; then
-    log_info "${n_created} instances were created successfully"
-    log_info "Fleet ${prefix} details:"
-    while IFS= read -r line
-    do
-      log_info "${line}"
-    done < <(printf "%s\n" "${details}")
+    log_info "${n_created} instances were created successfully (${n_instances} were requested)}"
   else
     log_warn "Number of created instances (${n_created}) differs from number of requested instances (${n_instances})"
     log_warn "run axiom-ls to check created instances, or check DigitalOcean dashboard"
