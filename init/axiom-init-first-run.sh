@@ -77,14 +77,6 @@ cp "${AXIOM_PATH}/axiom.json" "${AXIOM_CONFIG_OUTPUT_FILE}"
 printf "${GREEN}\nDone. Account configuration stored in ${AXIOM_CONFIG_OUTPUT_FILE}\n${NC}"
 sleep $SLEEPTIME
 
-#printf "${GREEN}\n\n\n*****************************\n"
-#printf "Installing doctl\n"
-#printf "*****************************\n\n${NC}"
-#install doctl while https://github.com/pry0cc/axiom/issues/672 is not fixed
-#wget -O /tmp/doctl.tar.gz https://github.com/digitalocean/doctl/releases/download/v1.66.0/doctl-1.66.0-linux-amd64.tar.gz && tar -xvzf /tmp/doctl.tar.gz && sudo mv doctl /usr/bin/doctl && rm /tmp/doctl.tar.gz
-#printf "${GREEN}\nDone. doctl installed.\n${NC}"
-#sleep $SLEEPTIME
-
 printf "${GREEN}\n\n\n*****************************\n"
 printf "Executing axiom-account to enable config\n"
 printf "*****************************\n\n${NC}"
