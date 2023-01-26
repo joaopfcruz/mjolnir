@@ -83,7 +83,7 @@ axiom-scan ${inputfile} -m subfinder -o ${output} --fleet "${fleet}*" > /dev/nul
 grep -f ${inputfile} ${output} >> ${output}
 rm -f ${TMP_FILE}
 
-#finalize output: use grep to delete all unneeded output (like wildcard domains)
+#finalize output: use grep to delete all unneeded output (like wildcard domains) and remove duplicates
 grep -P "(?=^.{4,253}$)(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,}|xn--[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$)" ${output} | sort -u > ${TMP_FILE}
 mv ${TMP_FILE} ${output}
 
