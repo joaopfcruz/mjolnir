@@ -40,8 +40,6 @@ else
   log_info "Fleet should have been initialized with success. Waiting a few more seconds to let the process end..."
   sleep 120
   n_created=$($AXIOM_PATH/interact/axiom-ls | grep "active" | grep -E "${prefix}[0-9]*" | wc -l)
-  echo $n_created
-  echo $n_instances
   if [ $n_created -eq $n_instances ]; then
     log_info "${n_created} instances were created successfully (${n_instances} were requested)}"
   else
