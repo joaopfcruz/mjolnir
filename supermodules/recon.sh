@@ -63,27 +63,27 @@ done
 
 rm -f ${output} ${TMP_FILE}
 log_info "Running amass module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-#axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --quiet --fleet "${fleet}*" -brute -active > /dev/null 2>&1
+#axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --quiet --fleet "${fleet}*" -brute -active
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running assetfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m assetfinder -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+axiom-scan ${inputfile} -m assetfinder -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running cero module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m cero -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+axiom-scan ${inputfile} -m cero -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running findomain module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m findomain -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+axiom-scan ${inputfile} -m findomain -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running subfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m subfinder -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+axiom-scan ${inputfile} -m subfinder -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
@@ -95,13 +95,45 @@ done
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far: $(wc -l < ${output})"
 rm -f ${TMP_FILE}
+log_info "Running recon-ng (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+RECON_NG_CMDS_FILE="/tmp/recon-ng.cmds"
+RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE="/tmp/recon-ng_delwspace.cmds"
+RECON_NG_TMPWORKSPACE="tmp_workspace"
+for dom in $(cat ${inputfile})
+do
+  printf "%s\n"\
+    "modules load recon/domains-hosts/hackertarget"\
+    "options set SOURCE ${dom}"\
+    "run"\
+    "modules load recon/domains-hosts/certificate_transparency"\
+    "options set SOURCE ${dom}"\
+    "run"\
+    "modules load reporting/list"\
+    "options set COLUMN host"\
+    "options set FILENAME ${TMP_FILE}"\
+    "run"\
+    "exit" > "${RECON_NG_CMDS_FILE}"
+  recon-ng -w ${RECON_NG_TMPWORKSPACE} -r ${RECON_NG_CMDS_FILE}
+  cat ${TMP_FILE} >> ${output}
+  rm -f ${RECON_NG_CMDS_FILE} ${TMP_FILE}
 
+  printf "%s\n"\
+  "workspaces remove ${RECON_NG_TMPWORKSPACE}"\
+  "exit" > "${RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE}"
+  recon-ng -r ${RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE}
+  rm -f ${RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE}
+done
+
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far: $(wc -l < ${output})"
+rm -f ${TMP_FILE}
 #clean up useless data (like duplicates and wildcards)
 log_info "Cleaning up data..."
 grep -P "(?=^.{4,253}$)(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,}|xn--[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$)" ${output} | sort -u > ${TMP_FILE}
 mv ${TMP_FILE} ${output}
 log_info "Total results so far (after clean up duplicates and other irrelevant data): $(wc -l < ${output})"
 
+#this one doesn't need cleanup. Running after cleaning useless data
 log_info "Running censys 'search' (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
 CENSYS_TMP_FILE="/tmp/censys.recon.tmp"
 censys_query=""
