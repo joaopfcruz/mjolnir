@@ -56,39 +56,81 @@ setup_output_folders $org $MJOLNIR_OUT_SUBFOLDER_RECON
 
 log_info "[START $0] Recon supermodule starting..."
 log_info "Input data:"
-while IFS= read -r line
+for dom in $(cat ${inputfile})
 do
-  log_info "    $line"
-done < "${inputfile}"
+  log_info "    $dom"
+done
 
 rm -f ${output} ${TMP_FILE}
-log_info "Running amass module (input file: ${inputfile} ; output file: {$output}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m amass -o ${output} --quiet --fleet "${fleet}*" -brute -active > /dev/null 2>&1
-grep -f ${inputfile} ${output} >> ${output}
+log_info "Running amass module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+#axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --quiet --fleet "${fleet}*" -brute -active > /dev/null 2>&1
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
-log_info "Running assetfinder module (input file: ${inputfile} ; output file: ${output}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m assetfinder -o ${output} --fleet "${fleet}*" > /dev/null 2>&1
-grep -f ${inputfile} ${output} >> ${output}
+log_info "Running assetfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+axiom-scan ${inputfile} -m assetfinder -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
-log_info "Running cero module (input file: ${inputfile} ; output file: {$output}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m cero -o ${output} --fleet "${fleet}*" > /dev/null 2>&1
-grep -f ${inputfile} ${output} >> ${output}
+log_info "Running cero module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+axiom-scan ${inputfile} -m cero -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
-log_info "Running findomain module (input file: ${inputfile} ; output file: {$output}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m findomain -o ${output} --fleet "${fleet}*" > /dev/null 2>&1
-grep -f ${inputfile} ${output} >> ${output}
+log_info "Running findomain module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+axiom-scan ${inputfile} -m findomain -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
-log_info "Running subfinder module (input file: ${inputfile} ; output file: {$output}; fleet: ${fleet})..."
-axiom-scan ${inputfile} -m subfinder -o ${output} --fleet "${fleet}*" > /dev/null 2>&1
-grep -f ${inputfile} ${output} >> ${output}
+log_info "Running subfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+axiom-scan ${inputfile} -m subfinder -o ${TMP_FILE} --fleet "${fleet}*" > /dev/null 2>&1
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
+rm -f ${TMP_FILE}
+log_info "Running censys 'subdomains' (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+for dom in $(cat ${inputfile})
+do
+  censys subdomains $dom | grep -v "^Found" | perl -n -e '/\s+-\s+(\S+)/ && print "$1\n"' >> ${TMP_FILE}
+done
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far: $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 
-#finalize output: use grep to delete all unneeded output (like wildcard domains) and remove duplicates
+#clean up useless data (like duplicates and wildcards)
+log_info "Cleaning up data..."
 grep -P "(?=^.{4,253}$)(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,}|xn--[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$)" ${output} | sort -u > ${TMP_FILE}
 mv ${TMP_FILE} ${output}
+log_info "Total results so far (after clean up duplicates and other irrelevant data): $(wc -l < ${output})"
+
+log_info "Running censys 'search' (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+CENSYS_TMP_FILE="/tmp/censys.recon.tmp"
+censys_query=""
+for dom in $(cat ${inputfile})
+do
+  censys_query+="$dom or "
+done
+censys_query=${censys_query::-4}
+censys search "${censys_query}" --index-type hosts --pages -1 > ${CENSYS_TMP_FILE}
+python3 - << EOF
+import json
+with open("${CENSYS_TMP_FILE}") as fcensystmp:
+  entries = json.load(fcensystmp)
+  with open("${TMP_FILE}", "w") as ftmp:
+    for e in entries:
+      try:
+        for name in e["dns"]["reverse_dns"]["names"]:
+          ftmp.write(f"{name}\n")
+      except KeyError:
+        ftmp.write(f"{e['ip']}\n")
+EOF
+rm -f ${CENSYS_TMP_FILE}
+cat ${TMP_FILE} >> ${output}
+rm -f ${TMP_FILE}
+
+log_info "Total number of results: $(wc -l < ${output})"
 
 #compress output
 log_info "Compressing output"
-bzip2 -z "${output}"
+bzip2 -z ${output}
 log_info "DONE. output saved to ${output}.bz2"
 log_info "[END $0] Recon supermodule finished."
