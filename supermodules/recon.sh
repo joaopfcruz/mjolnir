@@ -63,7 +63,7 @@ done
 
 rm -f ${output} ${TMP_FILE}
 log_info "Running amass module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-#axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --quiet --fleet "${fleet}*" -brute -active
+axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --fleet "${fleet}*" -brute -active
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
@@ -102,6 +102,7 @@ RECON_NG_TMPWORKSPACE="tmp_workspace"
 for dom in $(cat ${inputfile})
 do
   printf "%s\n"\
+    "options set TIMEOUT 60"\
     "modules load recon/domains-hosts/hackertarget"\
     "options set SOURCE ${dom}"\
     "run"\
