@@ -52,6 +52,7 @@ fi
 
 #GO!
 output="${MJOLNIR_OUT_FOLDER_PATH}/${org}/${MJOLNIR_OUT_SUBFOLDER_RECON}/${MJOLNIR_OUT_SUBFOLDER_RECON}.out.${org}.$(date +'%Y_%m_%dT%H_%M_%S').txt"
+jsonoutput="${output::-4}.json"
 setup_output_folders $org $MJOLNIR_OUT_SUBFOLDER_RECON
 
 log_info "[START $0] Recon supermodule starting..."
@@ -115,7 +116,7 @@ do
     "run"\
     "exit" > "${RECON_NG_CMDS_FILE}"
   recon-ng -w ${RECON_NG_TMPWORKSPACE} -r ${RECON_NG_CMDS_FILE}
-  cat ${TMP_FILE} >> ${output}
+  grep -f ${inputfile} ${TMP_FILE} >> ${output}
   rm -f ${RECON_NG_CMDS_FILE} ${TMP_FILE}
 
   printf "%s\n"\
@@ -124,10 +125,35 @@ do
   recon-ng -r ${RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE}
   rm -f ${RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE}
 done
-
-grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far: $(wc -l < ${output})"
 rm -f ${TMP_FILE}
+log_info "Running subdomain expansion (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+for result in $(cat "${output}")
+do
+  domain=""
+  other_domains=()
+  for i in $(cat "${inputfile}")
+  do
+    if echo "${result}"| grep -q "${i}"; then
+      domain=${i}
+    else
+      other_domains=("${other_domains[@]}" "${i}")
+    fi
+  done
+  if ! [ -z "${domain}" ]; then
+    for d in "${other_domains[@]}"; do
+      test_domain=${result//$domain/$d}
+      if [ -n "$(getent ahosts $test_domain | awk '{ print $1 }' | head -1)" ]; then
+        echo "$test_domain" >> ${TMP_FILE}
+      fi
+    done
+  fi
+done
+cat ${TMP_FILE}
+grep -f ${inputfile} ${TMP_FILE} >> ${output}
+log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
+rm -f ${TMP_FILE}
+
 #clean up useless data (like duplicates and wildcards)
 log_info "Cleaning up data..."
 grep -P "(?=^.{4,253}$)(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,}|xn--[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$)" ${output} | sort -u > ${TMP_FILE}
@@ -162,8 +188,39 @@ rm -f ${TMP_FILE}
 
 log_info "Total number of results: $(wc -l < ${output})"
 
-#compress output
+#converting output to json and execute 2nd stage of recon
+python3 - << EOF
+import json
+import socket
+with open("${jsonoutput}", "w") as fout:
+  data={"recon":{"stages":{"stage1":{"description":"The first stage of reconnaissance process crawls and queries multiple sources in order to retrieve all known IP addresses and hosts related to the top-level domains provided"}}}}
+  with open("${output}") as fin:
+    results = [result.rstrip("\n") for result in fin]
+    data["recon"]["stages"]["stage1"]["results"] = results
+    data["recon"]["stages"]["stage2"] = {}
+    stage2 = data["recon"]["stages"]["stage2"]
+    stage2["description"]="The second stage of reconnaissance process takes the output of previous stage and evaluates what hosts are alive and what IP addresses they resolve to (or reverse DNS in case of IP to name resolution)"
+    stage2["results"]={"hostnames":{},"ips":{}}
+    stage2_hostnames = stage2["results"]["hostnames"]
+    stage2_ips = stage2["results"]["ips"]
+    for r in results:
+      try:
+        socket.inet_aton(r)
+        try:
+          stage2_ips[r] = socket.gethostbyaddr(r)[0]
+        except socket.herror:
+          stage2_ips[r] = "Unable to reverse resolve IP"
+      except socket.error:
+        try:
+          stage2_hostnames[r] = socket.gethostbyname_ex(r)[2]
+        except socket.gaierror:
+          stage2_hostnames[r] = "Unable to resolve hostname"
+  json.dump(data, fout, indent=2)
+EOF
+
+rm -f ${output}
+#compress output}
 log_info "Compressing output"
-bzip2 -z ${output}
-log_info "DONE. output saved to ${output}.bz2"
+bzip2 -z ${jsonoutput}
+log_info "DONE. output saved to ${jsonoutput}.bz2"
 log_info "[END $0] Recon supermodule finished."
