@@ -4,6 +4,9 @@ MJOLNIR_REPO="https://github.com/joaopfcruz/mjolnir.git"
 
 MJOLNIR_HOME_ENVVAR_NAME="MJOLNIR_PATH"
 MJOLNIR_HOME_ENVVAR_VALUE="$HOME/mjolnir"
+
+PIP_HOME="$HOME/.local/bin"
+
 SHELL_FILE="$HOME/.bashrc"
 
 SLACK_INTEGRATION_ENV_FILE="$HOME/.slackenv"
@@ -26,6 +29,13 @@ printf "${GREEN}\n\n\n*****************************\n"
 printf "installing dependencies\n"
 printf "*****************************\n\n${NC}"
 sudo apt -y install python3 python3-pip git bzip2 recon-ng
+export PATH="$PATH:${PIP_HOME}"
+if grep "PATH.*${PIP_HOME}" "${SHELL_FILE}"; then
+  printf "${GREEN}PIP_HOME already set${NC}\n"
+else
+  echo "export PATH=\"\$PATH:${PIP_HOME}\"" >> "${SHELL_FILE}"
+  printf "${GREEN}PIP_HOME was set${NC}\n"
+fi
 pip3 install censys
 printf "${GREEN}\nDone. Dependencies installed.\n${NC}"
 sleep $SLEEPTIME
@@ -40,10 +50,10 @@ printf "${GREEN}\n\nchmoding executable files...${NC}\n"
 find ${MJOLNIR_HOME_ENVVAR_VALUE} -name "*.sh" -exec chmod 700 {} \;
 printf "${GREEN}\n\nSetting ${MJOLNIR_HOME_ENVVAR_NAME} env variable...${NC}\n"
 if grep "export ${MJOLNIR_HOME_ENVVAR_NAME}=" "${SHELL_FILE}"; then
-  printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} already set${NC}";
+  printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} already set${NC}\n"
 else
-  echo "export ${MJOLNIR_HOME_ENVVAR_NAME}=${MJOLNIR_HOME_ENVVAR_VALUE}" >> "${SHELL_FILE}";
-  printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} was set${NC}";
+  echo "export ${MJOLNIR_HOME_ENVVAR_NAME}=${MJOLNIR_HOME_ENVVAR_VALUE}" >> "${SHELL_FILE}"
+  printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} was set${NC}\n"
 fi
 printf "${GREEN}\n\nConfiguring integration with Slack...${NC}\n"
 read -p "Slack Bot User OAuth Token: " slack_token
