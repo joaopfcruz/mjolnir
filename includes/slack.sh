@@ -1,5 +1,5 @@
 #!/bin/bash
-source "$MJOLNIR_PATH/includes/vars.sh"
+source "$HOME/.slackenv"
 
 slack_notification() {
   if [ "$1" = true ] ; then
