@@ -3,12 +3,14 @@
 source "$MJOLNIR_PATH/includes/vars.sh"
 source "$MJOLNIR_PATH/includes/logger.sh"
 source "$MJOLNIR_PATH/includes/setup_out_folders.sh"
+source "$MJOLNIR_PATH/includes/slack.sh"
 
 TMP_FILE="/tmp/recon.tmp"
 
-usage() { log_err "Usage: $0 -f <fleet> -i <input file> -o <organization>"; exit 0; }
+usage() { log_err "Usage: $0 -f <fleet> -i <input file> -o <organization> [-s (notify activity on Slack)]"; exit 0; }
 
-while getopts ":f:i:o:" flags; do
+notify_flag=false
+while getopts ":f:i:o:s" flags; do
   case "${flags}" in
     f)
       fleet=${OPTARG}
@@ -18,6 +20,9 @@ while getopts ":f:i:o:" flags; do
       ;;
     o)
       org=${OPTARG}
+      ;;
+    s)
+      notify_flag=true
       ;;
     *)
       usage
@@ -50,6 +55,8 @@ else
   log_info "Fleet ${fleet} was found. Number of instances in fleet: ${n_created}"
 fi
 
+slack_notification "${notify_flag}" "$(cat /tmp/lol.json)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+exit
 #GO!
 output="${MJOLNIR_OUT_FOLDER_PATH}/${org}/${MJOLNIR_OUT_SUBFOLDER_RECON}/${MJOLNIR_OUT_SUBFOLDER_RECON}.out.${org}.$(date +'%Y_%m_%dT%H_%M_%S').txt"
 jsonoutput="${output::-4}.json"
@@ -57,38 +64,46 @@ setup_output_folders $org $MJOLNIR_OUT_SUBFOLDER_RECON
 
 log_info "[START $0] Recon supermodule starting..."
 log_info "Input data:"
+slack_notif_text="${SLACK_EMOJI_START_PROCESS} [_$0_] *Recon supermodule starting*. Input data:"$'\n'
 for dom in $(cat ${inputfile})
 do
   log_info "    $dom"
+  slack_notif_text="${slack_notif_text}        :dart:\`$dom\`"$'\n'
 done
-
+slack_notification "${notify_flag}" "${slack_notif_text}" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 rm -f ${output} ${TMP_FILE}
 log_info "Running amass module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`amass\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --fleet "${fleet}*" -brute -active
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running assetfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`assetfinder\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m assetfinder -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running cero module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`cero\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m cero -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running findomain module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`findomain\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m findomain -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running subfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`subfinder\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m subfinder -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running censys 'subdomains' (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`censys subdomains\` (locally)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 for dom in $(cat ${inputfile})
 do
   censys subdomains $dom | grep -v "^Found" | perl -n -e '/\s+-\s+(\S+)/ && print "$1\n"' >> ${TMP_FILE}
@@ -97,6 +112,7 @@ grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far: $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running recon-ng (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`recon-ng\` submodules (locally)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 RECON_NG_CMDS_FILE="/tmp/recon-ng.cmds"
 RECON_NG_DEL_TMPWORKSPACE_CMDS_FILE="/tmp/recon-ng_delwspace.cmds"
 RECON_NG_TMPWORKSPACE="tmp_workspace"
@@ -128,6 +144,7 @@ done
 log_info "Total results so far: $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running subdomain expansion (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`subdomain expansion\` internal module (locally)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 for result in $(cat "${output}")
 do
   domain=""
@@ -162,6 +179,7 @@ log_info "Total results so far (after clean up duplicates and other irrelevant d
 
 #this one doesn't need cleanup. Running after cleaning useless data
 log_info "Running censys 'search' (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`censys search\` (locally)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 CENSYS_TMP_FILE="/tmp/censys.recon.tmp"
 censys_query=""
 for dom in $(cat ${inputfile})
@@ -187,7 +205,7 @@ cat ${TMP_FILE} >> ${output}
 rm -f ${TMP_FILE}
 
 log_info "Total number of results: $(wc -l < ${output})"
-
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Total number of results after cleanup: \`$(wc -l < ${output})\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 #converting output to json and execute 2nd stage of recon
 python3 - << EOF
 import json
@@ -224,3 +242,4 @@ log_info "Compressing output"
 bzip2 -z ${jsonoutput}
 log_info "DONE. output saved to ${jsonoutput}.bz2"
 log_info "[END $0] Recon supermodule finished."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_FINISH_PROCESS} [_$0_] Recon supermodule finished. output saved to: \`${jsonoutput}.bz2\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
