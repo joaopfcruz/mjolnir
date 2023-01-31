@@ -141,8 +141,8 @@ do
 done
 log_info "Total results so far: $(wc -l < ${output})"
 rm -f ${TMP_FILE}
-log_info "Running subdomain expansion (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`subdomain expansion\` internal module (locally)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+log_info "Running input domain permutations (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: N/A - running locally)..."
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`input domain permutations\` internal module (locally)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 for result in $(cat "${output}")
 do
   domain=""
