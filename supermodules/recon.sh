@@ -55,8 +55,6 @@ else
   log_info "Fleet ${fleet} was found. Number of instances in fleet: ${n_created}"
 fi
 
-slack_notification "${notify_flag}" "$(cat /tmp/lol.json)" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
-exit
 #GO!
 output="${MJOLNIR_OUT_FOLDER_PATH}/${org}/${MJOLNIR_OUT_SUBFOLDER_RECON}/${MJOLNIR_OUT_SUBFOLDER_RECON}.out.${org}.$(date +'%Y_%m_%dT%H_%M_%S').txt"
 jsonoutput="${output::-4}.json"
