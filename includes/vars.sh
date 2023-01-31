@@ -2,12 +2,6 @@
 export AXIOM_PATH="$HOME/.axiom"
 export MJOLNIR_OUT_FOLDER_PATH="$HOME/results"
 
-#tokens
-export SLACK_API_TOKEN="xoxb-......"
-
-#Slack config
-export SLACK_CHANNEL_ID_FULLACTIVITY="C04MB1N2XH8"
-
 #WARNING! DO NOT CHANGE THESE UNLESS YOU KNOW WHAT YOU'RE DOING
 export MJOLNIR_OUT_SUBFOLDER_RECON="recon" #to store recon supermodule output
 export MJOLNIR_OUT_SUBFOLDER_SCAN="scan" #to store scan supermodule output
