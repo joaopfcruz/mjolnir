@@ -6,6 +6,10 @@ MJOLNIR_HOME_ENVVAR_NAME="MJOLNIR_PATH"
 MJOLNIR_HOME_ENVVAR_VALUE="$HOME/mjolnir"
 SHELL_FILE="$HOME/.bashrc"
 
+SLACK_INTEGRATION_ENV_FILE="$HOME/.slackenv"
+SLACK_INTEGRATION_APITOKEN_VAR_NAME="SLACK_API_TOKEN"
+SLACK_INTEGRATION_CHANID_FULLACTIVITY_VAR_NAME="SLACK_CHANNEL_ID_FULLACTIVITY"
+SLACK_INTEGRATION_CHANID_FINDINGSONLY_VAR_NAME="SLACK_CHANNEL_ID_FINDINGSONLY"
 SLEEPTIME=3
 
 GREEN='\033[0;32m'
@@ -41,6 +45,14 @@ else
   echo "export ${MJOLNIR_HOME_ENVVAR_NAME}=${MJOLNIR_HOME_ENVVAR_VALUE}" >> "${SHELL_FILE}";
   printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} was set${NC}";
 fi
+printf "${GREEN}\n\nConfiguring integration with Slack...${NC}\n"
+read -p "Slack Bot User OAuth Token: " slack_token
+read -p "Slack Channel ID (for sending full activity notifications): " slack_chid_fullactivity
+read -p "Slack Channel ID (for sending found vulnerabilities and findings only): " slack_chid_findingsonly
+printf "%s\n"\
+  "export ${SLACK_INTEGRATION_APITOKEN_VAR_NAME}=${slack_token}"\
+  "export ${SLACK_INTEGRATION_CHANID_FULLACTIVITY_VAR_NAME}=${slack_chid_fullactivity}"\
+  "export ${SLACK_INTEGRATION_CHANID_FINDINGSONLY_VAR_NAME}=${slack_chid_findingsonly}" > "${SLACK_INTEGRATION_ENV_FILE}"
 printf "${GREEN}\n\n\nDone. mjolnir configured.\n${NC}"
 sleep $SLEEPTIME
 
@@ -62,4 +74,3 @@ printf "configuring censys\n"
 printf "*****************************\n\n${NC}"
 censys config
 printf "${GREEN}\nDone. censys configured.\n${NC}"
-sleep $SLEEPTIME
