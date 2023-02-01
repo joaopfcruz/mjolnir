@@ -4,12 +4,12 @@ source "$MJOLNIR_PATH/includes/vars.sh"
 source "$MJOLNIR_PATH/includes/logger.sh"
 source "$MJOLNIR_PATH/includes/slack.sh"
 
-usage() { log_err "Usage: $0 -p <fleet prefix> -n <number of instances to spawn> [-s (notify activity on Slack)]"; exit 0; }
+usage() { log_err "Usage: $0 -f <fleet prefix> -n <number of instances to spawn> [-s (notify activity on Slack)]"; exit 0; }
 
 notify_flag=false
-while getopts "p:n:s" flags; do
+while getopts "f:n:s" flags; do
   case "${flags}" in
-    p)
+    f)
       prefix=${OPTARG}
       ;;
     n)
