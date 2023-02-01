@@ -71,31 +71,31 @@ done
 slack_notification "${notify_flag}" "${slack_notif_text}" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 rm -f ${output} ${TMP_FILE}
 log_info "Running amass module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`amass\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`amass\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m amass -o ${TMP_FILE} --fleet "${fleet}*" -brute -active
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running assetfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`assetfinder\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`assetfinder\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m assetfinder -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running cero module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`cero\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`cero\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m cero -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running findomain module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`findomain\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`findomain\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m findomain -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
 rm -f ${TMP_FILE}
 log_info "Running subfinder module (input file: ${inputfile} ; output file: ${TMP_FILE}; fleet: ${fleet})..."
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`subfinder\` module on fleet: \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_$0_] Running \`subfinder\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 axiom-scan ${inputfile} -m subfinder -o ${TMP_FILE} --fleet "${fleet}*"
 grep -f ${inputfile} ${TMP_FILE} >> ${output}
 log_info "Total results so far (still not cleaned up): $(wc -l < ${output})"
