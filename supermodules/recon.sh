@@ -235,7 +235,7 @@ with open("${jsonoutput}", "w") as fout:
 EOF
 
 rm -f ${output}
-#compress output}
+#compress output
 log_info "Compressing output"
 bzip2 -z ${jsonoutput}
 log_info "DONE. output saved to ${jsonoutput}.bz2"
