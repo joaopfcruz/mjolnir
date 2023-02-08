@@ -37,6 +37,7 @@ else
   printf "${GREEN}PIP_HOME was set${NC}\n"
 fi
 pip3 install censys
+sudo wget -q -O /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && sudo chmod +x /usr/bin/jq
 printf "${GREEN}\nDone. Dependencies installed.\n${NC}"
 sleep $SLEEPTIME
 
