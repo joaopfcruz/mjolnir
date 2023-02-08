@@ -4,7 +4,7 @@ source "$MJOLNIR_PATH/includes/vars.sh"
 source "$MJOLNIR_PATH/includes/logger.sh"
 source "$MJOLNIR_PATH/includes/slack.sh"
 
-SCRIPTNAME=$(basename "$0")
+SCRIPTNAME="axiomfleet-delete.sh"
 
 usage() { log_err "Usage: ${SCRIPTNAME} -p <fleet prefix> [-s (notify activity on Slack)]" "${SCRIPTNAME}"; exit 0; }
 
