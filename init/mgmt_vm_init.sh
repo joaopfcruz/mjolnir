@@ -24,7 +24,7 @@ printf "${GREEN}\nDone. packages and distro updated and default locale set to $D
 sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\n*****************************\n"
-printf "Creating '$APPUSER' user, preventing ssh login to it, and temporarily make it a passwordless sudo user (for the sake of unnatended setup)\n"
+printf "Creating '$APPUSER' userand preventing ssh login to it\n"
 printf "*****************************\n\n${NC}"
 if id "$APPUSER" &>/dev/null; then
   printf "${GREEN}user $APPUSER already exists. Skipping.\n${NC}"
@@ -33,7 +33,6 @@ else
   printf "${GREEN}\nDone. User $APPUSER added\n${NC}"
 fi
 grep -qxF "DenyUsers $APPUSER" /etc/ssh/sshd_config || echo "DenyUsers $APPUSER" >> /etc/ssh/sshd_config
-echo "$APPUSER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 sleep $SLEEPTIME
 
 printf "${GREEN}\n\n\nFinished. rebooting in $SLEEPTIME seconds...\n${NC}"
