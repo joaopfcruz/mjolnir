@@ -11,11 +11,11 @@ SCRIPTNAME_RECON="recon.sh"
 
 MAX_FLEET_NUMBER=10
 
-usage() { log_err "Usage: ${SCRIPTNAME_RECON} -f <fleet> -i <input file> -o <organization> [-s (notify activity on Slack)]" "${SCRIPTNAME_RECON}"; exit 0; }
+usage() { log_err "Usage: ${SCRIPTNAME_RECON} -f <fleet> -i <input file> -o <organization> [-s (notify activity on Slack)] [-n number of elements of axiom fleet (override defaults)]" "${SCRIPTNAME_RECON}"; exit 0; }
 
 notify_flag=false
 notify_flag_fleet_cmd=""
-while getopts ":f:i:o:s" flags; do
+while getopts "f:i:o:sn:" flags; do
   case "${flags}" in
     f)
       fleet=${OPTARG}
@@ -29,6 +29,9 @@ while getopts ":f:i:o:s" flags; do
     s)
       notify_flag=true
       notify_flag_fleet_cmd="-s"
+      ;;
+    n)
+      number_fleet_override=${OPTARG}
       ;;
     *)
       usage
@@ -59,6 +62,10 @@ if ! [ $n_created -eq 0 ]; then
   log_err "Fleet members are still alive. Please delete the fleet first or set a different fleet name to be created" "${SCRIPTNAME_RECON}"; exit 1;
 fi
 
+if ! [ -z "${number_fleet_override}" ] && ! [[ "${number_fleet_override}" =~ ^[0-9]+$ ]]; then
+  log_err "-n parameter should be an integer number" "${SCRIPTNAME_AXIOMFLEET_SPAWN}"; exit 1;
+fi
+
 #GO!
 output="${MJOLNIR_OUT_FOLDER_PATH}/${org}/${MJOLNIR_OUT_SUBFOLDER_RECON}/${MJOLNIR_OUT_SUBFOLDER_RECON}.out.${org}.$(date +'%Y_%m_%dT%H_%M_%S').txt"
 jsonoutput="${output::-4}.json"
@@ -76,10 +83,15 @@ do
 done
 slack_notification "${notify_flag}" "${slack_notif_text}" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 
-fleet_count=${MAX_FLEET_NUMBER}
-if [[ ${d} -lt ${MAX_FLEET_NUMBER} ]]; then
-  fleet_count=${d}
+if ! [ -z "${number_fleet_override}" ]; then
+  fleet_count=${number_fleet_override}
+else
+  fleet_count=${MAX_FLEET_NUMBER}
+  if [[ ${d} -lt ${MAX_FLEET_NUMBER} ]]; then
+    fleet_count=${d}
+  fi
 fi
+
 ${MJOLNIR_PATH}/fleetmgmt/axiomfleet-spawn.sh -p "${fleet}" -n ${fleet_count} "${notify_flag_fleet_cmd}"
 
 rm -f ${output} ${TMP_FILE}
