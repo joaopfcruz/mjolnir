@@ -28,7 +28,7 @@ sleep $SLEEPTIME
 printf "${GREEN}\n\n\n*****************************\n"
 printf "installing dependencies\n"
 printf "*****************************\n\n${NC}"
-sudo apt -y install python3 python3-pip git bzip2 recon-ng
+sudo apt -y install python3 python3-pip git bzip2 recon-ng xsltproc
 export PATH="$PATH:${PIP_HOME}"
 if grep "PATH.*${PIP_HOME}" "${SHELL_FILE}"; then
   printf "${GREEN}PIP_HOME already set${NC}\n"
