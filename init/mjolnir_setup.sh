@@ -47,8 +47,11 @@ printf "*****************************\n\n${NC}"
 rm -rf ${MJOLNIR_HOME_ENVVAR_VALUE}
 printf "${GREEN}\n\nCloning repo...${NC}\n"
 git clone ${MJOLNIR_REPO} ${MJOLNIR_HOME_ENVVAR_VALUE}
+mkdir ${MJOLNIR_HOME_ENVVAR_VALUE}/aux
 printf "${GREEN}\n\nchmoding executable files...${NC}\n"
 find ${MJOLNIR_HOME_ENVVAR_VALUE} -name "*.sh" -exec chmod 700 {} \;
+printf "${GREEN}\n\nDownloading nmap merger script...${NC}\n"
+wget -O ${MJOLNIR_HOME_ENVVAR_VALUE}/aux/nMapMerge.py https://raw.githubusercontent.com/CBHue/nMap_Merger/master/nMapMerge.py
 printf "${GREEN}\n\nSetting ${MJOLNIR_HOME_ENVVAR_NAME} env variable...${NC}\n"
 if grep "export ${MJOLNIR_HOME_ENVVAR_NAME}=" "${SHELL_FILE}"; then
   printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} already set${NC}\n"
