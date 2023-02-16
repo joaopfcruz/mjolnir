@@ -76,47 +76,50 @@ tmp_scan_inputfile="/tmp/tmpscaninput.txt"
 scan_inputfile="/tmp/scaninput.txt"
 
 input_jsondata=$(bzcat ${inputfile})
-stage2_results_hosts=$(echo $input_jsondata | jq -c ".recon.stages.stage2.results.hostnames")
-stage2_results_ips=$(echo $input_jsondata | jq -c ".recon.stages.stage2.results.ips")
+stage2_results_hosts=$(echo ${input_jsondata} | jq -c ".recon.stages.stage2.results.hostnames")
+stage2_results_ips=$(echo ${input_jsondata} | jq -c ".recon.stages.stage2.results.ips")
 
 rm -f ${tmp_scan_inputfile}
 log_info "Analyzing input file ${inputfile}..." "${SCRIPTNAME_SCAN}"
 h=0
 i=0
-if [[ $stage2_results_hosts == "null" ]]; then
+if [[ ${stage2_results_hosts} == "null" ]]; then
   log_warn "No hostnames were found on the input file. Check the stage2 output part of the recon process on the input file." "${SCRIPTNAME_SCAN}"
   slack_notification "${notify_flag}" "${SLACK_EMOJI_ORANGE_CIRCLE} [_${SCRIPTNAME_SCAN}_] No hostnames were found on the input file. Check the \`stage2\` output part of the recon process on the input file." "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 else
-  #collect ip resolutions from stage2 recon phase
+  #collect hostnames from stage2 recon phase
   while IFS='' read -r doublequoted_hostname; do
-    ips=$(echo $stage2_results_hosts | jq -c ".${doublequoted_hostname}")
-    if [[ $ips != "\"Unable to resolve hostname\"" ]]; then
-      echo $ips | tr -d '"][' >> ${tmp_scan_inputfile}
+    ips=$(echo ${stage2_results_hosts} | jq -c ".${doublequoted_hostname}")
+    if [[ ${ips} != "\"Unable to resolve hostname\"" ]]; then
+      echo ${doublequoted_hostname} | tr -d '"' >> ${tmp_scan_inputfile}
       h=$((h+1))
     fi
-  done < <(echo $stage2_results_hosts | jq "keys[]")
+  done < <(echo ${stage2_results_hosts} | jq "keys[]")
 fi
-#split ips one per line (since some hostnames will have multiple resolutions)
-sed -i "s/,/\n/g" ${tmp_scan_inputfile}
 
 log_info "Number of targets found to scan (from 'hostnames' input): ${h}" "${SCRIPTNAME_SCAN}"
 slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Number of targets found to scan (from \`hostnames\` input): \`${h}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 
-if [[ $stage2_results_ips == "null" ]]; then
+if [[ ${stage2_results_ips} == "null" ]]; then
   log_warn "No IP addresses were found on the input file. Check the stage2 output part of the recon process on the input file." "${SCRIPTNAME_SCAN}"
   slack_notification "${notify_flag}" "${SLACK_EMOJI_ORANGE_CIRCLE} [_${SCRIPTNAME_SCAN}_] No IP addresses were found on the input file. Check the \`stage2\` output part of the recon process on the input file." "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 else
-  #collect IPs from stage2 recon phase
+  #collect IP addresses from stage2 recon phase (hostanem if available otherwise IP address)
   while IFS='' read -r doublequoted_ip; do
-    echo $doublequoted_ip | tr -d '"' >> ${tmp_scan_inputfile}
+    hostname=$(echo ${stage2_results_ips} | jq -c ".${doublequoted_ip}")
+    if [[ ${hostname} != "\"Unable to reverse resolve IP\"" ]]; then
+      echo ${hostname} | tr -d '"' >> ${tmp_scan_inputfile}
+    else
+      echo ${doublequoted_ip} | tr -d '"' >> ${tmp_scan_inputfile}
+    fi
     i=$((i+1))
-  done < <(echo $stage2_results_ips | jq "keys[]")
+  done < <(echo ${stage2_results_ips} | jq "keys[]")
 fi
 
-#remove duplicates (if any)
+#remove duplicates (if any) and collect IP addreses only (ignore PTR resolutions)
 sort -u ${tmp_scan_inputfile} > ${scan_inputfile}
 rm -f ${tmp_scan_inputfile}
-
+exit
 log_info "Number of targets found to scan (from 'ips' input): ${i}" "${SCRIPTNAME_SCAN}"
 slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Number of targets found to scan (from \`ips\` input): \`${i}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 log_info "Total number of target to scan: $((h+i))" "${SCRIPTNAME_SCAN}"
@@ -138,7 +141,9 @@ fi
 #1. run masscan to scan all TCP ports on all IP addresses discovered in the recon process (analyzed above and stored in ${scan_inputfile}
 #2. With masscan output, prepare a set of different nmap scans. Output will be analyzed so different IP addresses but with the same set of open ports will be scanned at once
 
-#run axiom-scan ${scan_inputfile} -m masscan -o masscanoutput.txt --fleet aesir* -p 0-65535 --rate 100000 --retries 3 --open-only
+#axiom-scan ${scan_inputfile} -m masscan -o masscanoutput.txt --fleet aesir* -p 0-65535 --rate 100000 --retries 3 --open-only
+
+exit
 
 #prepare set of nmap scans based on masscan output
 nmap_scans_file="/tmp/nmap_scans_file.txt"
@@ -183,32 +188,41 @@ with open("${nmap_scans_file}", "w") as fout:
 EOF
 
 nmap_scan_input="/tmp/nmap_targets.txt"
-nmap_scan_intermediate_output="/tmp/nmap_interm_output.txt"
-nmap_final_output="/home/thor/nmapoutput.txt"
-rm -f ${nmap_scan_input} ${nmap_scan_intermediate_output} ${nmap_final_output}
+nmap_scan_intermediate_output_folder="/tmp/nmap_interm"
+nmap_scan_intermediate_output="nmap_interm_output"
+nmap_final_output="/home/thor/nmapoutput.xml"
+rm -f ${nmap_scan_input} ${nmap_final_output}
+rm -rf ${nmap_scan_intermediate_output_folder}
+mkdir ${nmap_scan_intermediate_output_folder}
+
+x=1
 for scan in $(cat ${nmap_scans_file});
 do
   port=$(echo $scan | grep -oP "^\K\d+")
   hosts=$(echo $scan | grep -oP "^\d+#\K\S+$" | sed "s/,/\n/g")
-  echo $port
   echo "${hosts}" > ${nmap_scan_input}
-  cat ${nmap_scan_input}
-  axiom-scan ${nmap_scan_input} -m nmap -oX ${nmap_scan_intermediate_output} --fleet "${fleet}*" -p ${port} --resolve-all -Pn -sS -T4 -sV --script=default,vuln --min-rate 1000 --max-retries 3
-  cat ${nmap_scan_intermediate_output} >> ${nmap_final_output}
-  rm -f ${nmap_scan_intermediate_output}
-  axiom-scan ${nmap_scan_input} -m nmap -oX ${nmap_scan_intermediate_output} --fleet "${fleet}*" -p ${port} --resolve-all -Pn -sS -T4 -sV --script=default,vuln --min-rate 1000 --max-retries 3 -6
-  cat ${nmap_scan_intermediate_output} >> ${nmap_final_output}
-  rm -f ${nmap_scan_input} ${nmap_scan_intermediate_output}
+  axiom-scan ${nmap_scan_input} -m nmap -oX "${nmap_scan_intermediate_output_folder}/${nmap_scan_intermediate_output}.${x}.xml" --fleet "${fleet}*" -p ${port} --resolve-all -Pn -sS -T4 -sV --script=default,vuln --min-rate 1000 --max-retries 3
+  x=$((x+1))
+  axiom-scan ${nmap_scan_input} -m nmap -oX "${nmap_scan_intermediate_output_folder}/${nmap_scan_intermediate_output}.${x}.xml" --fleet "${fleet}*" -p ${port} --resolve-all -Pn -sS -T4 -sV --script=default,vuln --min-rate 1000 --max-retries 3 -6
+  x=$((x+1))
 done
-#rm -f ${nmap_scans_file}
+rm -f ./nMap_Merged*.xml ./nMap_Merged*.html
+merged_output=$(python3 ${MJOLNIR_PATH}/aux/nMapMerge.py -q -d ${nmap_scan_intermediate_output_folder})
+xml_file=$(echo "${merged_output}" | grep -Po "^Output\sXML\sFile:\s\K.+\.xml$")
+mv ${xml_file} ${nmap_final_output}
+rm -f ./nMap_Merged*.html
 
+#rm -f ${nmap_scans_file}
 #rm -f ${scan_inputfile}
+#rm -f ${nmap_scan_input} ${nmap_final_output}
+#rm -rf ${nmap_scan_intermediate_output_folder}
+
 #compress output
 #log_info "Compressing output" "${SCRIPTNAME_SCAN}"
 #bzip2 -z ${jsonoutput}
 #log_info "DONE. output saved to ${jsonoutput}.bz2" "${SCRIPTNAME_SCAN}"
 
-#${MJOLNIR_PATH}/fleetmgmt/axiomfleet-delete.sh -p "${fleet}" "${notify_flag_fleet_cmd}"
+${MJOLNIR_PATH}/fleetmgmt/axiomfleet-delete.sh -p "${fleet}" "${notify_flag_fleet_cmd}"
 
 #log_info "[END ${SCRIPTNAME_SCAN}] Scanning supermodule finished." "${SCRIPTNAME_SCAN}"
 #slack_notification "${notify_flag}" "${SLACK_EMOJI_FINISH_PROCESS} [_${SCRIPTNAME_SCAN}_] Scanning supermodule finished. output saved to: \`${jsonoutput}.bz2\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
