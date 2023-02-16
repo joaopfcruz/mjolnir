@@ -233,6 +233,38 @@ slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_
 python3 - << EOF
 import json
 import socket
+import ipaddress
+
+def is_valid_ipv4_address(ip):
+  try:
+    ipaddress.IPv4Address(ip)
+    return True
+  except ipaddress.AddressValueError:
+    return False
+
+def is_valid_ipv6_address(ip):
+  try:
+    ipaddress.IPv6Address(ip)
+    return True
+  except ipaddress.AddressValueError:
+    return False
+
+def resolve_ip(i):
+  try:
+    return socket.gethostbyaddr(i)[0]
+  except:
+    return "Unable to reverse resolve IP"
+
+def resolve_name(n):
+  try:
+    addr_info = socket.getaddrinfo(n, None, socket.AF_UNSPEC)
+    ip_addresses = set()
+    for addr in addr_info:
+      ip_addresses.add(addr[4][0])
+    return ip_addresses
+  except:
+    return "Unable to resolve hostname"
+
 with open("${jsonoutput}", "w") as fout:
   data={"recon":{"stages":{"stage1":{"description":"The first stage of reconnaissance process crawls and queries multiple sources in order to retrieve all known IP addresses and hosts related to the top-level domains provided"}}}}
   with open("${output}") as fin:
@@ -245,21 +277,21 @@ with open("${jsonoutput}", "w") as fout:
     stage2_hostnames = stage2["results"]["hostnames"]
     stage2_ips = stage2["results"]["ips"]
     for r in results:
-      try:
-        socket.inet_aton(r)
-        try:
-          stage2_ips[r] = socket.gethostbyaddr(r)[0]
-        except socket.herror:
-          stage2_ips[r] = "Unable to reverse resolve IP"
-      except socket.error:
-        try:
-          stage2_hostnames[r] = socket.gethostbyname_ex(r)[2]
-        except socket.gaierror:
+      if is_valid_ipv4_address(r) or is_valid_ipv6_address(r):
+        stage2_ips[r] = resolve_ip(r)
+      else:
+        resolutions = resolve_name(r)
+        resolutions_output = []
+        if resolutions != "Unable to resolve hostname":
+          for res in resolutions:
+            resolutions_output.append(f"{res}|{resolve_ip(res)}")
+            stage2_hostnames[r] = resolutions_output
+        else:
           stage2_hostnames[r] = "Unable to resolve hostname"
   json.dump(data, fout, indent=2)
 EOF
-
 rm -f ${output}
+
 #compress output
 log_info "Compressing output" "${SCRIPTNAME_RECON}"
 bzip2 -z ${jsonoutput}
