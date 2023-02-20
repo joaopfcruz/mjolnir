@@ -55,10 +55,10 @@ if [ -z "${bzip2_test}" ]; then
   log_err "Input file is not a bzip2 file" "${SCRIPTNAME_SCAN}"; exit 1
 fi
 
-#n_created=$($AXIOM_PATH/interact/axiom-ls | grep "active" | grep -E "${fleet}[0-9]*" | wc -l)
-#if ! [ $n_created -eq 0 ]; then
-#  log_err "Fleet members are still alive. Please delete the fleet first or set a different fleet name to be created" "${SCRIPTNAME_SCAN}"; exit 1;
-#fi
+n_created=$($AXIOM_PATH/interact/axiom-ls | grep "active" | grep -E "${fleet}[0-9]*" | wc -l)
+if ! [ $n_created -eq 0 ]; then
+  log_err "Fleet members are still alive. Please delete the fleet first or set a different fleet name to be created" "${SCRIPTNAME_SCAN}"; exit 1;
+fi
 
 if ! [ -z "${number_fleet_override}" ] && ! [[ "${number_fleet_override}" =~ ^[0-9]+$ ]]; then
   log_err "-n parameter should be an integer number" "${SCRIPTNAME_AXIOMFLEET_SPAWN}"; exit 1;
@@ -67,19 +67,19 @@ fi
 #GO!
 output="${MJOLNIR_OUT_FOLDER_PATH}/${org}/${MJOLNIR_OUT_SUBFOLDER_SCAN}/${MJOLNIR_OUT_SUBFOLDER_SCAN}.out.${org}.$(date +'%Y_%m_%dT%H_%M_%S').txt"
 jsonoutput="${output::-4}.json"
-setup_output_folders $org $MJOLNIR_OUT_SUBFOLDER_SCAN
+setup_output_folders ${org} ${MJOLNIR_OUT_SUBFOLDER_SCAN}
 
 log_info "[START ${SCRIPTNAME_SCAN}] Scanning supermodule starting..." "${SCRIPTNAME_SCAN}"
 slack_notification "${notify_flag}" "${SLACK_EMOJI_START_PROCESS} [_${SCRIPTNAME_SCAN}_] *Scanning supermodule starting*. Input file: \`${inputfile}\` " "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 
-tmp_scan_inputfile="/tmp/tmpscaninput.txt"
-scan_inputfile="/tmp/scaninput.txt"
+tmp_scan_inputfile="/tmp/scan.in.tmp"
+scan_inputfile="/tmp/scan.in"
 
 input_jsondata=$(bzcat ${inputfile})
 stage2_results_hosts=$(echo ${input_jsondata} | jq -c ".recon.stages.stage2.results.hostnames")
 stage2_results_ips=$(echo ${input_jsondata} | jq -c ".recon.stages.stage2.results.ips")
 
-rm -f ${tmp_scan_inputfile}
+rm -f ${tmp_scan_inputfile} ${scan_inputfile}
 log_info "Analyzing input file ${inputfile}..." "${SCRIPTNAME_SCAN}"
 h=0
 i=0
@@ -119,7 +119,7 @@ fi
 #remove duplicates (if any) and collect IP addreses only (ignore PTR resolutions)
 sort -u ${tmp_scan_inputfile} > ${scan_inputfile}
 rm -f ${tmp_scan_inputfile}
-exit
+
 log_info "Number of targets found to scan (from 'ips' input): ${i}" "${SCRIPTNAME_SCAN}"
 slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Number of targets found to scan (from \`ips\` input): \`${i}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
 log_info "Total number of target to scan: $((h+i))" "${SCRIPTNAME_SCAN}"
@@ -135,94 +135,34 @@ else
 fi
 
 
-#${MJOLNIR_PATH}/fleetmgmt/axiomfleet-spawn.sh -p "${fleet}" -n ${fleet_count} "${notify_flag_fleet_cmd}"
+${MJOLNIR_PATH}/fleetmgmt/axiomfleet-spawn.sh -p "${fleet}" -n ${fleet_count} "${notify_flag_fleet_cmd}"
 
-#Network discovery with masscan + NMAP
-#1. run masscan to scan all TCP ports on all IP addresses discovered in the recon process (analyzed above and stored in ${scan_inputfile}
-#2. With masscan output, prepare a set of different nmap scans. Output will be analyzed so different IP addresses but with the same set of open ports will be scanned at once
 
-#axiom-scan ${scan_inputfile} -m masscan -o masscanoutput.txt --fleet aesir* -p 0-65535 --rate 100000 --retries 3 --open-only
+##NAABU##
+naabu_output="/tmp/naabu.out"
+rm -f ${naabu_output}
+log_info "Running naabu module (input file: ${scan_inputfile} ; output file: ${naabu_output}; fleet: ${fleet})..." "${SCRIPTNAME_SCAN}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Running \`naabu\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+axiom-scan ${scan_inputfile} -m naabu -o ${naabu_output} --fleet "${fleet}*" -p - -c 100 -rate 5000 -sa -iv 4,6 -Pn -retries 3
 
-exit
-
-#prepare set of nmap scans based on masscan output
-nmap_scans_file="/tmp/nmap_scans_file.txt"
-rm -f ${nmap_scans_file}
-python3 - << EOF
-import re
-
-def ip_to_hostname(ip):
-  json_data = ${input_jsondata}
-  ips = json_data["recon"]["stages"]["stage2"]["results"]["ips"]
-  hostnames = json_data["recon"]["stages"]["stage2"]["results"]["hostnames"]
-  if ip in ips.keys():
-    return ips[ip]
-  else:
-    for h in hostnames.keys():
-      if ip in hostnames[h]:
-        return h
-
-data = {}
-with open("/home/thor/masscanoutput.txt") as masscanoutput:
-  for line in masscanoutput:
-    line = line.rstrip("\n")
-    try:
-      ip = re.search("^Host:\s+(\d+\.\d+\.\d+\.\d+)\s+\(\)\s+Ports:\s+\d+/\S+/\S+////$", line).group(1)
-      port = re.search("^Host:\s+\d+\.\d+\.\d+\.\d+\s+\(\)\s+Ports:\s+(\d+)/\S+/\S+////$", line).group(1)
-    except AttributeError:
-      ip = None
-      port = None
-    if ip and port:
-      hostname = ip_to_hostname(ip)
-      try:
-        data[port].append(hostname)
-      except KeyError:
-        data[port] = [hostname]
-
-with open("${nmap_scans_file}", "w") as fout:
-  for port in data.keys():
-      hosts = ",".join(list(dict.fromkeys(data[port])))
-      #file format:
-      #port#hostnames(comma separated)
-      fout.write(f"{port}#{hosts}\n")
-EOF
-
-nmap_scan_input="/tmp/nmap_targets.txt"
-nmap_scan_intermediate_output_folder="/tmp/nmap_interm"
-nmap_scan_intermediate_output="nmap_interm_output"
-nmap_final_output="/home/thor/nmapoutput.xml"
-rm -f ${nmap_scan_input} ${nmap_final_output}
-rm -rf ${nmap_scan_intermediate_output_folder}
-mkdir ${nmap_scan_intermediate_output_folder}
-
-x=1
-for scan in $(cat ${nmap_scans_file});
-do
-  port=$(echo $scan | grep -oP "^\K\d+")
-  hosts=$(echo $scan | grep -oP "^\d+#\K\S+$" | sed "s/,/\n/g")
-  echo "${hosts}" > ${nmap_scan_input}
-  axiom-scan ${nmap_scan_input} -m nmap -oX "${nmap_scan_intermediate_output_folder}/${nmap_scan_intermediate_output}.${x}.xml" --fleet "${fleet}*" -p ${port} --resolve-all -Pn -sS -T4 -sV --script=default,vuln --min-rate 1000 --max-retries 3
-  x=$((x+1))
-  axiom-scan ${nmap_scan_input} -m nmap -oX "${nmap_scan_intermediate_output_folder}/${nmap_scan_intermediate_output}.${x}.xml" --fleet "${fleet}*" -p ${port} --resolve-all -Pn -sS -T4 -sV --script=default,vuln --min-rate 1000 --max-retries 3 -6
-  x=$((x+1))
-done
-rm -f ./nMap_Merged*.xml ./nMap_Merged*.html
-merged_output=$(python3 ${MJOLNIR_PATH}/aux/nMapMerge.py -q -d ${nmap_scan_intermediate_output_folder})
-xml_file=$(echo "${merged_output}" | grep -Po "^Output\sXML\sFile:\s\K.+\.xml$")
-mv ${xml_file} ${nmap_final_output}
-rm -f ./nMap_Merged*.html
-
-#rm -f ${nmap_scans_file}
-#rm -f ${scan_inputfile}
-#rm -f ${nmap_scan_input} ${nmap_final_output}
-#rm -rf ${nmap_scan_intermediate_output_folder}
+##NMAP##
+nmap_output="/tmp/nmap.out"
+rm -f ${nmap_scans_file} ${nmap_output}
+discovered_ports=$(cat ${naabu_output} | cut -d ":" -f 2 | sort -u)
+discovered_ports=$(echo -n "${discovered_ports}" | tr "\n" ",")
+#run nmap against all hosts and all discovered ports
+#(not all ports will be found in all hosts but that's fine (for the sake of simplicity)
+log_info "Running nmap module (input file: ${scan_inputfile} ; output file: ${nmap_output}; fleet: ${fleet})..." "${SCRIPTNAME_SCAN}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Running \`naabu\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+axiom-scan ${scan_inputfile} -m nmap -oX ${nmap_output} --fleet "${fleet}*" -p ${discovered_ports} -Pn -sS -T4 -sV --min-rate 1000 --max-retries 3 --open
+rm -f ${scan_inputfile} ${naabu_output} ${nmap_output}.html
 
 #compress output
-#log_info "Compressing output" "${SCRIPTNAME_SCAN}"
-#bzip2 -z ${jsonoutput}
-#log_info "DONE. output saved to ${jsonoutput}.bz2" "${SCRIPTNAME_SCAN}"
+log_info "Compressing output" "${SCRIPTNAME_SCAN}"
+bzip2 -z ${jsonoutput}
+log_info "DONE. output saved to ${jsonoutput}.bz2" "${SCRIPTNAME_SCAN}"
 
 ${MJOLNIR_PATH}/fleetmgmt/axiomfleet-delete.sh -p "${fleet}" "${notify_flag_fleet_cmd}"
 
-#log_info "[END ${SCRIPTNAME_SCAN}] Scanning supermodule finished." "${SCRIPTNAME_SCAN}"
-#slack_notification "${notify_flag}" "${SLACK_EMOJI_FINISH_PROCESS} [_${SCRIPTNAME_SCAN}_] Scanning supermodule finished. output saved to: \`${jsonoutput}.bz2\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+log_info "[END ${SCRIPTNAME_SCAN}] Scanning supermodule finished." "${SCRIPTNAME_SCAN}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_FINISH_PROCESS} [_${SCRIPTNAME_SCAN}_] Scanning supermodule finished. output saved to: \`${jsonoutput}.bz2\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
