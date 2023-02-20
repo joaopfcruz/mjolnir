@@ -234,6 +234,9 @@ python3 - << EOF
 import json
 import socket
 import ipaddress
+import ssl
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 
 def is_valid_ipv4_address(ip):
   try:
@@ -265,20 +268,73 @@ def resolve_name(n):
   except:
     return "Unable to resolve hostname"
 
-with open("${jsonoutput}", "w") as fout:
-  data={"recon":{"stages":{"stage1":{"description":"The first stage of reconnaissance process crawls and queries multiple sources in order to retrieve all known IP addresses and hosts related to the top-level domains provided"}}}}
-  with open("${output}") as fin:
-    results = [result.rstrip("\n") for result in fin]
-    data["recon"]["stages"]["stage1"]["results"] = results
-    data["recon"]["stages"]["stage2"] = {}
-    stage2 = data["recon"]["stages"]["stage2"]
-    stage2["description"]="The second stage of reconnaissance process takes the output of previous stage and evaluates what hosts are alive and what IP addresses they resolve to (or reverse DNS in case of IP to name resolution)"
-    stage2["results"]={"hostnames":{},"ips":{}}
-    stage2_hostnames = stage2["results"]["hostnames"]
-    stage2_ips = stage2["results"]["ips"]
-    for r in results:
-      if is_valid_ipv4_address(r) or is_valid_ipv6_address(r):
-        stage2_ips[r] = resolve_ip(r)
+#a few results could not be related with the input domains (common in public cloud infrastructures)
+#as we don't want to scan foreign assets, for these cases we're doing what we can in order to check if
+#a given untrusted result is really related with any of the input domains
+#we're querying the TLS certificate on port 443 (falling back to 8443 if 443 is closed).
+#if the common name includes any of the input domains we can trust the asset
+#if not, we mark the asset as untrusted
+def double_check_untrusted_result(result, input_domains):
+  TIMEOUT = 3
+  def get_cert_subject_cn():
+    try:
+      with context.wrap_socket(sock, server_hostname=result) as ssock:
+        cert_data = ssock.getpeercert(True)
+        cert = x509.load_der_x509_certificate(cert_data, default_backend())
+        return cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+    except:
+      return None
+  context = ssl.create_default_context()
+  context.check_hostname = False
+  context.verify_mode = ssl.CERT_NONE
+  try:
+    with socket.create_connection((result, 443), timeout = TIMEOUT) as sock:
+      common_name = get_cert_subject_cn()
+      return common_name and any(s in common_name for s in input_domains)
+  except:
+    try:
+      with socket.create_connection((result, 8443), timeout = TIMEOUT) as sock:
+        common_name = get_cert_subject_cn()
+        return common_name and any(s in common_name for s in input_domains)
+    except:
+      return False
+
+data={"recon":{"stages":{"stage1":{"description":"The first stage of reconnaissance process crawls and queries multiple sources in order to retrieve all known IP addresses and hosts related to the top-level domains provided"}}}}
+with open("${output}") as fin:
+  with open("${inputfile}") as f:
+   input_domains = [domain.rstrip("\n") for domain in f]
+  results = [result.rstrip("\n") for result in fin]
+  data["recon"]["stages"]["stage1"]["results"] = results
+  data["recon"]["stages"]["stage2"] = {}
+  stage2 = data["recon"]["stages"]["stage2"]
+  stage2["description"]="The second stage of reconnaissance process takes the output of previous stage and evaluates what hosts are alive and what IP addresses they resolve to (or reverse DNS in case of IP to name resolution). As an extra precaution measure, for the cases where the resolved DNS name for any result doesn't include any of the domain names given on the input file, the tool tries to fetch a TLS certificate from common ports for HTTPS (443 and 8443) and evaluates the subject common name. If it doesn't find any certificate or if it doesn't appears to be related with any of the domains given as input the result will be recorded on the 'untrustedresults' list."
+  stage2["results"]={"hostnames":{},"ips":{}, "untrustedresults":[]}
+  stage2_hostnames = stage2["results"]["hostnames"]
+  stage2_ips = stage2["results"]["ips"]
+  untrusted = stage2["results"]["untrustedresults"]
+  for r in results:
+    if is_valid_ipv4_address(r) or is_valid_ipv6_address(r):
+      name = resolve_ip(r)
+      if not any(s in name for s in input_domains):
+        if not double_check_untrusted_result(r, input_domains):
+          untrusted.append(r)
+        else:
+          stage2_ips[r] = name
+      else:
+        stage2_ips[r] = name
+    else:
+      if not any(s in r for s in input_domains):
+        if not double_check_untrusted_result(r, input_domains):
+          untrusted.append(r)
+        else:
+          resolutions = resolve_name(r)
+          resolutions_output = []
+          if resolutions != "Unable to resolve hostname":
+            for res in resolutions:
+              resolutions_output.append(f"{res}|{resolve_ip(res)}")
+              stage2_hostnames[r] = resolutions_output
+          else:
+            stage2_hostnames[r] = "Unable to resolve hostname"
       else:
         resolutions = resolve_name(r)
         resolutions_output = []
@@ -288,7 +344,8 @@ with open("${jsonoutput}", "w") as fout:
             stage2_hostnames[r] = resolutions_output
         else:
           stage2_hostnames[r] = "Unable to resolve hostname"
-  json.dump(data, fout, indent=2)
+  with open("${jsonoutput}", "w") as fout:
+    json.dump(data, fout, indent=2)
 EOF
 rm -f ${output}
 
