@@ -4,6 +4,7 @@ MJOLNIR_REPO="https://github.com/joaopfcruz/mjolnir.git"
 
 MJOLNIR_HOME_ENVVAR_NAME="MJOLNIR_PATH"
 MJOLNIR_HOME_ENVVAR_VALUE="$HOME/mjolnir"
+MJOLNIR_AUX_FOLDER="auxiliary"
 
 PIP_HOME="$HOME/.local/bin"
 
@@ -50,6 +51,9 @@ printf "${GREEN}\n\nCloning repo...${NC}\n"
 git clone ${MJOLNIR_REPO} ${MJOLNIR_HOME_ENVVAR_VALUE}
 printf "${GREEN}\n\nchmoding executable files...${NC}\n"
 find ${MJOLNIR_HOME_ENVVAR_VALUE} -name "*.sh" -exec chmod 700 {} \;
+printf "${GREEN}\n\nConfiguring some auxiliary tools...${NC}\n"
+mkdir ${MJOLNIR_HOME_ENVVAR_VALUE}/${MJOLNIR_AUX_FOLDER}
+git clone https://github.com/ernw/nmap-parse-output.git ${MJOLNIR_HOME_ENVVAR_VALUE}/${MJOLNIR_AUX_FOLDER}/nmap-parse-output
 printf "${GREEN}\n\nSetting ${MJOLNIR_HOME_ENVVAR_NAME} env variable...${NC}\n"
 if grep "export ${MJOLNIR_HOME_ENVVAR_NAME}=" "${SHELL_FILE}"; then
   printf "${GREEN}${MJOLNIR_HOME_ENVVAR_NAME} already set${NC}\n"
