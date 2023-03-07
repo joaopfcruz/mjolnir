@@ -55,10 +55,10 @@ if [ -z "${bzip2_test}" ]; then
   log_err "Input file is not a bzip2 file" "${SCRIPTNAME_SCAN}"; exit 1
 fi
 
-n_created=$($AXIOM_PATH/interact/axiom-ls | grep "active" | grep -E "${fleet}[0-9]*" | wc -l)
-if ! [ $n_created -eq 0 ]; then
-  log_err "Fleet members are still alive. Please delete the fleet first or set a different fleet name to be created" "${SCRIPTNAME_SCAN}"; exit 1;
-fi
+#n_created=$($AXIOM_PATH/interact/axiom-ls | grep "active" | grep -E "${fleet}[0-9]*" | wc -l)
+#if ! [ $n_created -eq 0 ]; then
+#  log_err "Fleet members are still alive. Please delete the fleet first or set a different fleet name to be created" "${SCRIPTNAME_SCAN}"; exit 1;
+#fi
 
 if ! [ -z "${number_fleet_override}" ] && ! [[ "${number_fleet_override}" =~ ^[0-9]+$ ]]; then
   log_err "-n parameter should be an integer number" "${SCRIPTNAME_AXIOMFLEET_SPAWN}"; exit 1;
@@ -143,7 +143,7 @@ naabu_output="/tmp/naabu.out"
 rm -f ${naabu_output}
 log_info "Running naabu module (input file: ${scan_inputfile} ; output file: ${naabu_output}; fleet: ${fleet})..." "${SCRIPTNAME_SCAN}"
 slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Running \`naabu\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
-axiom-scan ${scan_inputfile} -m naabu -o ${naabu_output} --fleet "${fleet}*" -p - -c 100 -rate 5000 -sa -iv 4,6 -Pn -retries 3
+axiom-scan ${scan_inputfile} -m naabu -o ${naabu_output} --fleet "${fleet}*" -p - -c 100 -rate 10000 -sa -iv 4,6 -Pn -retries 3
 
 ##NMAP##
 nmap_output="/tmp/nmap.out"
@@ -151,11 +151,30 @@ rm -f ${nmap_scans_file} ${nmap_output}
 discovered_ports=$(cat ${naabu_output} | cut -d ":" -f 2 | sort -u)
 discovered_ports=$(echo -n "${discovered_ports}" | tr "\n" ",")
 #run nmap against all hosts and all discovered ports
-#(not all ports will be found in all hosts but that's fine (for the sake of simplicity)
+#(not all ports will be found in all hosts but that's fine (for the sake of simplicity))
 log_info "Running nmap module (input file: ${scan_inputfile} ; output file: ${nmap_output}; fleet: ${fleet})..." "${SCRIPTNAME_SCAN}"
-slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Running \`naabu\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
-axiom-scan ${scan_inputfile} -m nmap -oX ${nmap_output} --fleet "${fleet}*" -p ${discovered_ports} -Pn -sS -T4 -sV --min-rate 1000 --max-retries 3 --open
-rm -f ${scan_inputfile} ${naabu_output} ${nmap_output}.html
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Running \`nmap\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+axiom-scan ${scan_inputfile} -m nmap -oX ${nmap_output} --fleet "${fleet}*" -p ${discovered_ports} -Pn -sS -sC -T4 -sV --min-rate 1000 --max-retries 3 --open
+rm -f ${nmap_output}.html
+
+httpx_output="/tmp/httpx.out"
+rm -f ${httpx_output}
+#we're not interested in grouping hosts by open ports, but it's a quick and dirty way to get the correspondent hostname of an IP at this point,
+#since host-ports will give us ip_port data only
+group_by_ports_data=$($MJOLNIR_PATH/auxiliary/nmap-parse-output/nmap-parse-output ${nmap_output} group-by-ports)
+http_ports_data=$($MJOLNIR_PATH/auxiliary/nmap-parse-output/nmap-parse-output ${nmap_output} http-ports)
+http_ports=$(echo "${http_ports_data}" | grep -P "^http://" | cut -d ":" -f 3 | sort -u | tr "\n" "," | sed 's/.$//')
+https_ports=$(echo "${http_ports_data}" | grep -P "^https://" | cut -d ":" -f 3 | sort -u | tr "\n" "," | sed 's/.$//')
+#run httpx against all hosts and all discovered HTTP/HTTPS ports
+#(not all ports will be found in all hosts but that's fine (for the sake of simplicity))
+log_info "Running httpx module (input file: ${scan_inputfile} ; output file: ${httpx_output}; fleet: ${fleet})..." "${SCRIPTNAME_SCAN}"
+slack_notification "${notify_flag}" "${SLACK_EMOJI_GREEN_CIRCLE} [_${SCRIPTNAME_SCAN}_] Running \`httpx\` module on fleet \`${fleet}\`" "${SLACK_CHANNEL_ID_FULLACTIVITY}"
+axiom-scan ${scan_inputfile} -m httpx --fleet "${fleet}*" -o ${httpx_output} -p http:${http_ports},https:${https_ports} -sc -cl -ct -location -hash sha512 -jarm -title -server -tech-detect -json -random-agent -fr -timeout 3
+
+#rm -f ${scan_inputfile}
+#rm -f ${naabu_output}
+#rm -f ${nmap_output}
+#rm -f ${httpx_output}
 
 #compress output
 log_info "Compressing output" "${SCRIPTNAME_SCAN}"
